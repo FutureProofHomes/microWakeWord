@@ -2,7 +2,15 @@
 
 microWakeWord is an open-source wakeword library for detecting custom wake words on low power devices. It produces models that are suitable for using [TensorFlow Lite for Microcontrollers](https://www.tensorflow.org/lite/microcontrollers). The models are suitable for real-world usage with low false accept and false reject rates.
 
-**microWakeword is currently available as an early release. Training new models is intended for advanced users. Training a model that works well is still very difficult, as it typically requires experimentation with hyperparameters and sample generation settings. Please share any insights you find for training a good model!**
+**Good news! We now offer both advanced and simplified training options:**
+- **For beginners**: Use our new simplified training interface with the `easy_training_notebook.ipynb` notebook or the `microwakeword.easy_train` module
+- **For advanced users**: The original training process is still available for those who want full control over all parameters
+
+### Documentation
+
+- [Quick Start Guide](documentation/quick_start.md) - Get up and running in 5 minutes
+- [Installation Guide](documentation/installation_guide.md) - Detailed setup instructions for all platforms
+- [Training Best Practices](documentation/training_best_practices.md) - Tips for creating effective models
 
 ## Detection Process
 
@@ -37,7 +45,21 @@ We generate samples using [Piper sample generator](https://github.com/rhasspy/pi
 
 The generated samples are augmented before or during training to increase variability. There are pre-generated spectrogram features for various negative datasets available on [Hugging Face](https://huggingface.co/datasets/kahrendt/microwakeword).
 
-Please see the ``basic_training_notebook.ipynb`` notebook to see how a model is trained. This notebook will produce a model, but it will most likely not be usable! Training a usable model requires a lot of experimentation, and that notebook is meant to serve only as a starting point for advanced users.
+### Training Options
+
+We offer two ways to train models:
+
+1. **Easy Training (Recommended for Most Users)**
+   - Use the `easy_training_notebook.ipynb` notebook for a guided experience
+   - Simplified interface with sensible defaults based on wake word characteristics
+   - Presets for different wake word lengths and environment types
+   - See [Training Best Practices](documentation/training_best_practices.md) for guidance
+
+2. **Advanced Training**
+   - Use the `basic_training_notebook.ipynb` notebook for full control over all parameters
+   - Requires understanding of neural networks and audio processing
+   - Allows customization of every aspect of the training process
+   - Recommended for researchers and advanced users
 
 ## Models
 
