@@ -246,7 +246,11 @@ class WakeWordTrainer:
             "--output-dir", self.samples_dir
         ]
 
+        # Log the exact command being run with the batch size highlighted
+        logger.info(f"Sample generation command with batch size {str(self.batch_size)}: {' '.join(cmd)}")
+
         logger.info(f"Running command: {' '.join(cmd)}")
+        logger.info(f"Using batch size: {self.batch_size} for sample generation")
         subprocess.run(cmd, check=True)
 
         # Verify samples were generated
@@ -357,6 +361,7 @@ class WakeWordTrainer:
 
         # Run training
         logger.info(f"Running command: {' '.join(cmd)}")
+        logger.info(f"Using batch size: {self.batch_size} for model training")
 
         try:
             subprocess.run(cmd, check=True)
