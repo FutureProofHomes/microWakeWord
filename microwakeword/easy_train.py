@@ -199,6 +199,9 @@ class WakeWordTrainer:
             "target_minimization": 0.9,
             "minimization_metric": None,
             "maximization_metric": "average_viable_recall",
+            # Explicitly set spectrogram dimensions to ensure compatibility
+            "spectrogram_length": 204,
+            "feature_count": 40,
         }
 
         # Override with any advanced configuration
@@ -211,16 +214,16 @@ class WakeWordTrainer:
     def generate_samples(self):
         """Generate synthetic wake word samples using Piper."""
         logger.info(f"Generating {self.samples_count} samples for wake word: {self.wake_word}")
-        
+
         # Create samples directory
         os.makedirs(self.samples_dir, exist_ok=True)
-        
+
         # Check if piper-sample-generator exists
         piper_dir = "piper-sample-generator"
         if not os.path.exists(piper_dir):
             logger.info("Downloading piper-sample-generator...")
             subprocess.run(["git", "clone", "https://github.com/rhasspy/piper-sample-generator"], check=True)
-            
+
             # Download model if needed
             model_path = os.path.join(piper_dir, "models", "en_US-libritts_r-medium.pt")
             if not os.path.exists(model_path):
@@ -229,30 +232,36 @@ class WakeWordTrainer:
                     ["wget", "-O", model_path, "https://github.com/rhasspy/piper-sample-generator/releases/download/v2.0.0/en_US-libritts_r-medium.pt"],
                     check=True
                 )
-        
+
         # Generate samples
         cmd = [
-            "python3", 
+            "python3",
             os.path.join(piper_dir, "generate_samples.py"),
             self.wake_word,
             "--max-samples", str(self.samples_count),
             "--batch-size", "100",
             "--output-dir", self.samples_dir
         ]
-        
+
         logger.info(f"Running command: {' '.join(cmd)}")
         subprocess.run(cmd, check=True)
-        
+
         # Verify samples were generated
         sample_count = len([f for f in os.listdir(self.samples_dir) if f.endswith(".wav")])
         logger.info(f"Generated {sample_count} samples in {self.samples_dir}")
-        
+
         return sample_count
 
     def prepare_training_config(self):
         """Prepare the training configuration file."""
         logger.info("Preparing training configuration...")
-        
+
+        # Generate spectrograms from samples
+        logger.info("Preparing to generate spectrograms from samples...")
+
+        # Ensure the features directory exists
+        os.makedirs(self.features_dir, exist_ok=True)
+
         # Add generated samples as positive features
         self.config["features"].append({
             "features_dir": os.path.join(self.features_dir, "generated_augmented"),
@@ -262,7 +271,7 @@ class WakeWordTrainer:
             "truncation_strategy": "truncate_start",
             "type": "mmap",
         })
-        
+
         # Add negative datasets
         negative_datasets = ["speech", "dinner_party", "no_speech"]
         for dataset in negative_datasets:
@@ -274,7 +283,7 @@ class WakeWordTrainer:
                 "truncation_strategy": "random",
                 "type": "mmap",
             })
-        
+
         # Add evaluation dataset
         self.config["features"].append({
             "features_dir": "negative_datasets/dinner_party_eval",
@@ -284,23 +293,27 @@ class WakeWordTrainer:
             "truncation_strategy": "split",
             "type": "mmap",
         })
-        
+
+        # Calculate training input shape based on spectrogram dimensions
+        # This ensures the model expects the correct input shape
+        self.config["training_input_shape"] = [self.config["spectrogram_length"], self.config["feature_count"]]
+
         # Write configuration to file
         with open(self.config_path, "w") as f:
             yaml.dump(self.config, f)
-        
+
         logger.info(f"Training configuration saved to {self.config_path}")
         return self.config_path
 
     def train_model(self):
         """Train the wake word model."""
         logger.info("Starting model training...")
-        
+
         # Get model preset
         model_preset = self.MODEL_PRESETS[self.preset]
         model_type = model_preset["model_type"]
         model_args = model_preset["model_args"]
-        
+
         # Build command
         cmd = [
             "python", "-m", "microwakeword.model_train_eval",
@@ -315,79 +328,150 @@ class WakeWordTrainer:
             "--use_weights", "best_weights",
             model_type,
         ]
-        
+
         # Add model-specific arguments
         for arg_name, arg_value in model_args.items():
             cmd.append(f"--{arg_name}")
             cmd.append(str(arg_value))
-        
+
         # Run training
         logger.info(f"Running command: {' '.join(cmd)}")
         subprocess.run(cmd, check=True)
-        
+
         logger.info(f"Model training completed. Model saved in {self.config['train_dir']}")
         return os.path.join(self.config["train_dir"], "streaming_quantized.tflite")
+
+    def generate_spectrograms(self):
+        """Generate spectrograms from audio samples."""
+        logger.info("Generating spectrograms from audio samples...")
+
+        # Create features directory
+        os.makedirs(os.path.join(self.features_dir, "generated_augmented"), exist_ok=True)
+
+        # Check if we have audio samples
+        if not os.path.exists(self.samples_dir) or len([f for f in os.listdir(self.samples_dir) if f.endswith(".wav")]) == 0:
+            logger.error("No audio samples found. Please generate samples first.")
+            return False
+
+        try:
+            # Import here to avoid circular imports
+            import sys
+            import numpy as np
+            from microwakeword.audio.clips import Clips
+            from microwakeword.audio.augmentation import Augmentation
+            from microwakeword.audio.spectrograms import SpectrogramGeneration
+
+            # Configure augmentation based on preset
+            augmentation_config = self.AUGMENTATION_PRESETS[self.augmentation_level]
+
+            # Create clips handler
+            clips = Clips(
+                input_directory=self.samples_dir,
+                file_pattern="*.wav",
+                max_clip_duration_s=None,
+                remove_silence=False,
+                random_split_seed=10,
+                split_count=0.1,
+            )
+
+            # Create augmentation handler
+            augmenter = Augmentation(
+                augmentation_duration_s=3.2,
+                augmentation_probabilities=augmentation_config["augmentation_probabilities"],
+                background_min_snr_db=augmentation_config["background_min_snr_db"],
+                background_max_snr_db=augmentation_config["background_max_snr_db"],
+                impulse_paths=["mit_rirs"] if os.path.exists("mit_rirs") else [],
+                background_paths=["fma_16k", "audioset_16k"] if os.path.exists("fma_16k") else [],
+                min_jitter_s=0.195,
+                max_jitter_s=0.205,
+            )
+
+            # Create spectrogram generator
+            spectrograms = SpectrogramGeneration(
+                clips=clips,
+                augmenter=augmenter,
+                slide_frames=10,
+                step_ms=10,
+            )
+
+            # Generate spectrograms
+            logger.info("Generating spectrograms... This may take a while.")
+            spectrograms.generate_ragged_mmap(
+                output_dir=os.path.join(self.features_dir, "generated_augmented", "training"),
+                repetition=2,
+            )
+
+            logger.info("Spectrograms generated successfully.")
+            return True
+
+        except Exception as e:
+            logger.error(f"Error generating spectrograms: {str(e)}")
+            return False
 
     def run_full_pipeline(self):
         """Run the complete training pipeline."""
         logger.info(f"Starting full training pipeline for wake word: {self.wake_word}")
-        
+
         # Step 1: Generate samples
         sample_count = self.generate_samples()
         if sample_count == 0:
             logger.error("Failed to generate samples. Aborting.")
             return None
-        
+
+        # Step 1.5: Generate spectrograms
+        if not self.generate_spectrograms():
+            logger.warning("Failed to generate spectrograms. Continuing with training, but it may fail.")
+
         # Step 2: Prepare training configuration
-        config_path = self.prepare_training_config()
-        
+        self.prepare_training_config()
+
         # Step 3: Train model
         model_path = self.train_model()
-        
+
         logger.info(f"Training pipeline completed successfully!")
         logger.info(f"Trained model saved to: {model_path}")
-        
+
         return model_path
 
 
 def main():
     """Command-line interface for the easy training tool."""
     parser = argparse.ArgumentParser(description="Easy microWakeWord model training")
-    
+
     parser.add_argument(
-        "wake_word", 
-        type=str, 
+        "wake_word",
+        type=str,
         help="The wake word to train (e.g., 'hey_computer')"
     )
     parser.add_argument(
-        "--output-dir", 
-        type=str, 
+        "--output-dir",
+        type=str,
         default="trained_models",
         help="Directory to save the trained model"
     )
     parser.add_argument(
-        "--preset", 
-        type=str, 
+        "--preset",
+        type=str,
         choices=["short", "medium", "long"],
         default="medium",
         help="Model preset based on wake word length"
     )
     parser.add_argument(
-        "--augmentation", 
-        type=str, 
+        "--augmentation",
+        type=str,
         choices=["light", "medium", "heavy"],
         default="medium",
         help="Level of audio augmentation to apply"
     )
     parser.add_argument(
-        "--samples", 
-        type=int, 
+        "--samples",
+        type=int,
         default=1000,
         help="Number of synthetic samples to generate"
     )
-    
+
     args = parser.parse_args()
-    
+
     trainer = WakeWordTrainer(
         wake_word=args.wake_word,
         output_dir=args.output_dir,
@@ -395,7 +479,7 @@ def main():
         augmentation_level=args.augmentation,
         samples_count=args.samples
     )
-    
+
     trainer.run_full_pipeline()
 
 
