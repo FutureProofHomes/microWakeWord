@@ -1,6 +1,6 @@
 # microWakeWord Installation and Usage Guide
 
-This guide provides step-by-step instructions for installing and using microWakeWord on different operating systems. Follow the instructions for your specific platform to get started with training custom wake word models.
+This guide provides step-by-step instructions for installing and using microWakeWord on different operating systems. The recommended way to use microWakeWord is through the Jupyter notebook interface, which provides an interactive and guided experience.
 
 ## Table of Contents
 
@@ -10,8 +10,8 @@ This guide provides step-by-step instructions for installing and using microWake
   - [Linux](#linux)
   - [Windows](#windows)
 - [Using microWakeWord](#using-microwakeword)
+  - [Jupyter Notebook (Recommended)](#jupyter-notebook-recommended)
   - [Command-Line Interface](#command-line-interface)
-  - [Jupyter Notebook](#jupyter-notebook)
   - [Python API](#python-api)
 - [Troubleshooting](#troubleshooting)
 
@@ -66,9 +66,9 @@ This guide provides step-by-step instructions for installing and using microWake
    pip install -e .
    ```
 
-4. Install Jupyter (if you plan to use notebooks):
+4. Install Jupyter and ipywidgets (if you plan to use notebooks):
    ```bash
-   pip install jupyter
+   pip install jupyter ipywidgets
    ```
 
 ### Linux
@@ -109,9 +109,9 @@ This guide provides step-by-step instructions for installing and using microWake
    pip install -e .
    ```
 
-4. Install Jupyter (if you plan to use notebooks):
+4. Install Jupyter and ipywidgets (if you plan to use notebooks):
    ```bash
-   pip install jupyter
+   pip install jupyter ipywidgets
    ```
 
 ### Windows
@@ -148,16 +148,52 @@ This guide provides step-by-step instructions for installing and using microWake
    pip install -e .
    ```
 
-4. Install Jupyter (if you plan to use notebooks):
+4. Install Jupyter and ipywidgets (if you plan to use notebooks):
    ```cmd
-   pip install jupyter
+   pip install jupyter ipywidgets
    ```
 
 ## Using microWakeWord
 
+### Jupyter Notebook (Recommended)
+
+The recommended way to train wake word models is using the interactive Jupyter notebooks, which provide step-by-step guidance and explanations:
+
+1. Start Jupyter:
+   ```bash
+   # Activate your virtual environment first
+   source microwakeword-env/bin/activate  # Linux/macOS
+   microwakeword-env\Scripts\activate     # Windows
+
+   jupyter notebook
+   ```
+
+2. Navigate to the `notebooks` directory and open one of these notebooks:
+   - **`easy_training_notebook.ipynb`** (recommended for most users)
+     - Guided interface with clear explanations
+     - Simplified parameter selection
+     - Automatic handling of common issues
+     - Best for beginners and those who want quick results
+
+   - **`basic_training_notebook.ipynb`** (for advanced users)
+     - Full control over all training parameters
+     - Detailed explanations of each component
+     - Allows customization of every aspect of the training process
+     - Best for researchers and those who want to fine-tune models
+
+3. Follow the step-by-step instructions in the notebook
+
+The notebooks will guide you through:
+- Installing dependencies
+- Generating synthetic wake word samples
+- Creating spectrograms
+- Training the model
+- Converting to a format suitable for deployment
+- Testing and evaluating your model
+
 ### Command-Line Interface
 
-The simplest way to train a wake word model is using the command-line interface:
+For users who prefer a command-line approach, you can use the `train_wake_word.py` script:
 
 ```bash
 # Activate your virtual environment first
@@ -182,25 +218,6 @@ microwakeword-env\Scripts\activate     # Windows
 - `--detection-threshold`: Detection threshold for the model manifest (default: 0.7)
 - `--negative-weight`: Override the negative class weight (higher = fewer false positives)
 - `--training-steps`: Override the number of training steps
-
-### Jupyter Notebook
-
-For a more interactive experience, you can use the Jupyter notebooks:
-
-1. Start Jupyter:
-   ```bash
-   # Activate your virtual environment first
-   source microwakeword-env/bin/activate  # Linux/macOS
-   microwakeword-env\Scripts\activate     # Windows
-
-   jupyter notebook
-   ```
-
-2. Navigate to the `notebooks` directory and open either:
-   - `easy_training_notebook.ipynb` (recommended for beginners)
-   - `basic_training_notebook.ipynb` (for advanced users)
-
-3. Follow the step-by-step instructions in the notebook
 
 ### Python API
 

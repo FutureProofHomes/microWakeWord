@@ -8,8 +8,7 @@ microWakeWord is an open-source wakeword library for detecting custom wake words
 
 ### Documentation
 
-- [Quick Start Guide](documentation/quick_start.md) - Get up and running in 5 minutes
-- [Installation Guide](documentation/installation_guide.md) - Detailed setup instructions for all platforms
+- [Installation & Usage Guide](documentation/installation_guide.md) - Setup instructions and usage for all platforms
 - [Training Best Practices](documentation/training_best_practices.md) - Tips for creating effective models
 
 ## Detection Process
