@@ -218,6 +218,7 @@ microwakeword-env\Scripts\activate     # Windows
 - `--detection-threshold`: Detection threshold for the model manifest (default: 0.7)
 - `--negative-weight`: Override the negative class weight (higher = fewer false positives)
 - `--training-steps`: Override the number of training steps
+- `--batch-size`: Set the batch size for training (default: 128)
 
 ### Python API
 
@@ -248,7 +249,8 @@ advanced_config = {
     "training_steps": [30000],
     "negative_class_weight": [25],
     "time_mask_max_size": [8],
-    "freq_mask_max_size": [8]
+    "freq_mask_max_size": [8],
+    "batch_size": 64  # Smaller batch size if memory is limited
 }
 
 trainer = WakeWordTrainer(
@@ -256,6 +258,7 @@ trainer = WakeWordTrainer(
     preset="long",
     augmentation_level="heavy",
     samples_count=3000,
+    batch_size=256,  # Larger batch size for faster training
     advanced_config=advanced_config
 )
 

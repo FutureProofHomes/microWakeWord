@@ -140,6 +140,7 @@ class WakeWordTrainer:
         preset: str = "medium",
         augmentation_level: str = "medium",
         samples_count: int = 1000,
+        batch_size: int = 128,
         advanced_config: Optional[Dict] = None,
     ):
         """
@@ -151,6 +152,7 @@ class WakeWordTrainer:
             preset: Model preset to use ("short", "medium", or "long")
             augmentation_level: Level of audio augmentation ("light", "medium", or "heavy")
             samples_count: Number of synthetic samples to generate
+            batch_size: Batch size for training (default: 128)
             advanced_config: Optional dictionary with advanced configuration parameters
         """
         self.wake_word = wake_word
@@ -158,6 +160,7 @@ class WakeWordTrainer:
         self.preset = preset
         self.augmentation_level = augmentation_level
         self.samples_count = samples_count
+        self.batch_size = batch_size
         self.advanced_config = advanced_config or {}
 
         # Validate inputs
@@ -189,7 +192,7 @@ class WakeWordTrainer:
             "positive_class_weight": [1],
             "negative_class_weight": [self.MODEL_PRESETS[self.preset]["negative_class_weight"]],
             "learning_rates": [0.001],
-            "batch_size": 128,
+            "batch_size": self.batch_size,
             "time_mask_max_size": [5],
             "time_mask_count": [2],
             "freq_mask_max_size": [5],
@@ -469,6 +472,12 @@ def main():
         default=1000,
         help="Number of synthetic samples to generate"
     )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=128,
+        help="Batch size for training (larger values may be faster but require more memory)"
+    )
 
     args = parser.parse_args()
 
@@ -477,7 +486,8 @@ def main():
         output_dir=args.output_dir,
         preset=args.preset,
         augmentation_level=args.augmentation,
-        samples_count=args.samples
+        samples_count=args.samples,
+        batch_size=args.batch_size
     )
 
     trainer.run_full_pipeline()
