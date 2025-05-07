@@ -317,6 +317,15 @@ class WakeWordTrainer:
         model_type = model_preset["model_type"]
         model_args = model_preset["model_args"]
 
+        # Ensure the training configuration has been written to disk
+        with open(self.config_path, "w") as f:
+            import yaml
+            yaml.dump(self.config, f)
+
+        logger.info(f"Updated training configuration saved to {self.config_path}")
+        logger.info(f"Training input shape: {self.config.get('training_input_shape', 'Not set')}")
+        logger.info(f"Spectrogram dimensions: {self.config.get('spectrogram_length', 'Not set')} x {self.config.get('feature_count', 'Not set')}")
+
         # Build command
         cmd = [
             "python", "-m", "microwakeword.model_train_eval",
@@ -329,8 +338,17 @@ class WakeWordTrainer:
             "--test_tflite_streaming", "0",
             "--test_tflite_streaming_quantized", "1",
             "--use_weights", "best_weights",
-            model_type,
         ]
+
+        # Add input shape parameters if available
+        if "spectrogram_length" in self.config and "feature_count" in self.config:
+            cmd.extend([
+                "--input_shape",
+                f"{self.config['spectrogram_length']},{self.config['feature_count']}"
+            ])
+
+        # Add model type
+        cmd.append(model_type)
 
         # Add model-specific arguments
         for arg_name, arg_value in model_args.items():
@@ -339,17 +357,31 @@ class WakeWordTrainer:
 
         # Run training
         logger.info(f"Running command: {' '.join(cmd)}")
-        subprocess.run(cmd, check=True)
 
-        logger.info(f"Model training completed. Model saved in {self.config['train_dir']}")
-        return os.path.join(self.config["train_dir"], "streaming_quantized.tflite")
+        try:
+            subprocess.run(cmd, check=True)
+            logger.info(f"Model training completed. Model saved in {self.config['train_dir']}")
+            return os.path.join(self.config["train_dir"], "streaming_quantized.tflite")
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Training failed with error code {e.returncode}")
+            logger.error(f"Command: {e.cmd}")
+            if e.output:
+                logger.error(f"Output: {e.output}")
+            if e.stderr:
+                logger.error(f"Error: {e.stderr}")
+            raise
 
     def generate_spectrograms(self):
         """Generate spectrograms from audio samples."""
         logger.info("Generating spectrograms from audio samples...")
 
         # Create features directory
-        os.makedirs(os.path.join(self.features_dir, "generated_augmented"), exist_ok=True)
+        features_dir = os.path.join(self.features_dir, "generated_augmented")
+        os.makedirs(features_dir, exist_ok=True)
+
+        # Create subdirectories for training, validation, and testing
+        for subdir in ["training", "validation", "testing"]:
+            os.makedirs(os.path.join(features_dir, subdir), exist_ok=True)
 
         # Check if we have audio samples
         if not os.path.exists(self.samples_dir) or len([f for f in os.listdir(self.samples_dir) if f.endswith(".wav")]) == 0:
@@ -360,6 +392,7 @@ class WakeWordTrainer:
             # Import here to avoid circular imports
             import sys
             import numpy as np
+            import tensorflow as tf
             from microwakeword.audio.clips import Clips
             from microwakeword.audio.augmentation import Augmentation
             from microwakeword.audio.spectrograms import SpectrogramGeneration
@@ -397,44 +430,102 @@ class WakeWordTrainer:
                 step_ms=10,
             )
 
-            # Generate spectrograms
-            logger.info("Generating spectrograms... This may take a while.")
+            # Generate a sample spectrogram to determine dimensions
+            logger.info("Generating a sample spectrogram to determine dimensions...")
+            sample_clip = clips.get_random_clip()
+            augmented_clip = augmenter.augment_clip(sample_clip)
+            sample_spec = spectrograms._generate_spectrogram(augmented_clip)
+
+            # Update the configuration with the actual spectrogram dimensions
+            self.config["spectrogram_length"] = sample_spec.shape[0]
+            self.config["feature_count"] = sample_spec.shape[1]
+            self.config["training_input_shape"] = [self.config["spectrogram_length"], self.config["feature_count"]]
+
+            logger.info(f"Detected spectrogram dimensions: {sample_spec.shape}")
+            logger.info(f"Setting training_input_shape to: {self.config['training_input_shape']}")
+
+            # Generate spectrograms for training
+            logger.info("Generating spectrograms for training... This may take a while.")
             spectrograms.generate_ragged_mmap(
-                output_dir=os.path.join(self.features_dir, "generated_augmented", "training"),
+                output_dir=os.path.join(features_dir, "training"),
                 repetition=2,
             )
 
-            logger.info("Spectrograms generated successfully.")
+            # Generate spectrograms for validation
+            logger.info("Generating spectrograms for validation...")
+            validation_spectrograms = SpectrogramGeneration(
+                clips=clips,
+                augmenter=augmenter,
+                slide_frames=10,
+                step_ms=10,
+            )
+            validation_spectrograms.generate_ragged_mmap(
+                output_dir=os.path.join(features_dir, "validation"),
+                repetition=1,
+                split="validation"
+            )
+
+            # Generate spectrograms for testing
+            logger.info("Generating spectrograms for testing...")
+            testing_spectrograms = SpectrogramGeneration(
+                clips=clips,
+                augmenter=augmenter,
+                slide_frames=1,  # Use slide_frames=1 for testing to simulate streaming
+                step_ms=10,
+            )
+            testing_spectrograms.generate_ragged_mmap(
+                output_dir=os.path.join(features_dir, "testing"),
+                repetition=1,
+                split="test"
+            )
+
+            logger.info("All spectrograms generated successfully.")
             return True
 
         except Exception as e:
             logger.error(f"Error generating spectrograms: {str(e)}")
+            logger.error(f"Stack trace: {sys.exc_info()}")
             return False
 
     def run_full_pipeline(self):
         """Run the complete training pipeline."""
         logger.info(f"Starting full training pipeline for wake word: {self.wake_word}")
 
-        # Step 1: Generate samples
-        sample_count = self.generate_samples()
-        if sample_count == 0:
-            logger.error("Failed to generate samples. Aborting.")
+        try:
+            # Step 1: Generate samples
+            logger.info("Step 1: Generating wake word samples...")
+            sample_count = self.generate_samples()
+            if sample_count == 0:
+                logger.error("Failed to generate samples. Aborting.")
+                return None
+
+            # Step 2: Generate spectrograms and determine dimensions
+            logger.info("Step 2: Generating spectrograms and determining dimensions...")
+            if not self.generate_spectrograms():
+                logger.error("Failed to generate spectrograms. Cannot continue without proper spectrograms.")
+                return None
+
+            # Step 3: Prepare training configuration with the correct dimensions
+            logger.info("Step 3: Preparing training configuration...")
+            self.prepare_training_config()
+
+            # Step 4: Train model
+            logger.info("Step 4: Training the model...")
+            model_path = self.train_model()
+
+            if model_path and os.path.exists(model_path):
+                logger.info(f"Training pipeline completed successfully!")
+                logger.info(f"Trained model saved to: {model_path}")
+                return model_path
+            else:
+                logger.error("Training completed but model file not found.")
+                return None
+
+        except Exception as e:
+            logger.error(f"Error in training pipeline: {str(e)}")
+            import traceback
+            logger.error(f"Stack trace: {traceback.format_exc()}")
             return None
-
-        # Step 1.5: Generate spectrograms
-        if not self.generate_spectrograms():
-            logger.warning("Failed to generate spectrograms. Continuing with training, but it may fail.")
-
-        # Step 2: Prepare training configuration
-        self.prepare_training_config()
-
-        # Step 3: Train model
-        model_path = self.train_model()
-
-        logger.info(f"Training pipeline completed successfully!")
-        logger.info(f"Trained model saved to: {model_path}")
-
-        return model_path
 
 
 def main():
