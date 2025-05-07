@@ -242,7 +242,7 @@ class WakeWordTrainer:
             os.path.join(piper_dir, "generate_samples.py"),
             self.wake_word,
             "--max-samples", str(self.samples_count),
-            "--batch-size", "100",
+            "--batch-size", str(self.batch_size),
             "--output-dir", self.samples_dir
         ]
 
