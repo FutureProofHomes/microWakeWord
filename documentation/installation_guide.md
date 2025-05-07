@@ -55,7 +55,7 @@ This guide provides step-by-step instructions for installing and using microWake
 
 2. Clone the repository:
    ```bash
-   git clone https://github.com/kahrendt/microWakeWord.git
+   git clone https://github.com/BigPappy098/microWakeWord.git
    cd microWakeWord
    ```
 
@@ -100,7 +100,7 @@ This guide provides step-by-step instructions for installing and using microWake
 
 2. Clone the repository:
    ```bash
-   git clone https://github.com/kahrendt/microWakeWord.git
+   git clone https://github.com/BigPappy098/microWakeWord.git
    cd microWakeWord
    ```
 
@@ -139,7 +139,7 @@ This guide provides step-by-step instructions for installing and using microWake
 
 2. Clone the repository:
    ```cmd
-   git clone https://github.com/kahrendt/microWakeWord.git
+   git clone https://github.com/BigPappy098/microWakeWord.git
    cd microWakeWord
    ```
 
@@ -192,7 +192,7 @@ For a more interactive experience, you can use the Jupyter notebooks:
    # Activate your virtual environment first
    source microwakeword-env/bin/activate  # Linux/macOS
    microwakeword-env\Scripts\activate     # Windows
-   
+
    jupyter notebook
    ```
 
@@ -285,6 +285,6 @@ chmod +x train_wake_word.py
 
 If you encounter issues not covered here:
 
-1. Check the [GitHub Issues](https://github.com/kahrendt/microWakeWord/issues) for similar problems
+1. Check the [GitHub Issues](https://github.com/BigPappy098/microWakeWord/issues) for similar problems
 2. Read the [Training Best Practices](training_best_practices.md) guide
 3. Open a new issue with details about your system and the error message

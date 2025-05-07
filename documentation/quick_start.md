@@ -14,7 +14,7 @@ This guide will help you quickly get started with training your own custom wake 
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/kahrendt/microWakeWord.git
+git clone https://github.com/BigPappy098/microWakeWord.git
 cd microWakeWord
 ```
 
@@ -101,13 +101,13 @@ micro_wake_word:
   model_file: "streaming_quantized.tflite"
   model_name: "hey_computer"
   probability_cutoff: 0.7
-  
+
 binary_sensor:
   - platform: micro_wake_word
     name: "Wake Word Detected"
     id: wake_word
     model_id: hey_computer
-    
+
 # Optional - add a text-to-speech response
 on_wake_word:
   - logger.log: "Wake word detected!"

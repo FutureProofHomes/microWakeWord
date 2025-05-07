@@ -22,9 +22,9 @@ setuptools.setup(
     description="A TensorFlow based wake word detection training framework using synthetic sample generation suitable for certain microcontrollers.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/kahrendt/microWakeWord",
+    url="https://github.com/BigPappy098/microWakeWord",
     project_urls={
-        "Bug Tracker": "https://github.com/kahrendt/microWakeWord/issues",
+        "Bug Tracker": "https://github.com/BigPappy098/microWakeWord/issues",
     },
     classifiers=[
         "Programming Language :: Python :: 3",

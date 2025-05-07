@@ -19,8 +19,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/kahrendt/microWakeWord"
-Issues = "https://github.com/kahrendt/microWakeWord/issues"
+Homepage = "https://github.com/BigPappy098/microWakeWord"
+Issues = "https://github.com/BigPappy098/microWakeWord/issues"
 
 [tool.black]
 target-version = ["py310"]
