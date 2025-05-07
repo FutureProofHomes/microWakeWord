@@ -1,0 +1,88 @@
+# Function to export the model
+def export_model(button):
+    import shutil
+    
+    progress_output8.value = "<p>Exporting model...</p>"
+    
+    # Get the wake word and threshold
+    wake_word = wake_word_input.value
+    threshold = threshold_slider.value
+    
+    # Path to the trained model
+    model_path = "trained_models/wakeword/tflite_stream_state_internal_quant/stream_state_internal_quant.tflite"
+    
+    # Check if the model exists
+    if not os.path.exists(model_path):
+        progress_output8.value = "<p style='color: red;'>❌ Model file not found. Make sure training completed successfully.</p>"
+        return
+    
+    # Create export directory
+    export_dir = f"exported_model_{wake_word}"
+    if not os.path.exists(export_dir):
+        os.makedirs(export_dir)
+    
+    # Copy the model file
+    export_model_path = os.path.join(export_dir, f"{wake_word}.tflite")
+    shutil.copy(model_path, export_model_path)
+    
+    # Create manifest file
+    manifest = {
+        "name": wake_word,
+        "version": 2,
+        "type": "micro_speech",
+        "description": f"Custom wake word model for '{wake_word}'",
+        "specs": {
+            "average_window_length": 10,
+            "detection_threshold": threshold,
+            "suppression_ms": 1000,
+            "minimum_count": 3,
+            "sample_rate": 16000,
+            "vocabulary": ["_silence_", "_unknown_", wake_word]
+        }
+    }
+    
+    # Save manifest file
+    manifest_path = os.path.join(export_dir, "manifest.json")
+    with open(manifest_path, 'w') as f:
+        json.dump(manifest, f, indent=2)
+    
+    # Create ESPHome configuration example
+    esphome_config = f"""
+# Wake word configuration
+micro_wake_word:
+  model_file: "{os.path.basename(export_model_path)}"
+  model_name: "{wake_word}"
+  probability_cutoff: {threshold}
+  
+binary_sensor:
+  - platform: micro_wake_word
+    name: "Wake Word Detected"
+    id: wake_word
+    model_id: {wake_word}
+    
+# Optional - add a text-to-speech response
+esphome:
+  on_boot:
+    priority: -100
+    then:
+      - delay: 5s
+      - logger.log: "Wake word detection ready"
+      
+on_wake_word:
+  - logger.log: "Wake word detected!"
+  # Add your actions here
+"""
+    
+    # Save ESPHome config example
+    config_path = os.path.join(export_dir, "esphome_example.yaml")
+    with open(config_path, 'w') as f:
+        f.write(esphome_config)
+    
+    progress_output8.value = f"<p style='color: green;'>✅ Model exported successfully to {export_dir}!</p>"
+    progress_output8.value += f"<p>Files created:</p>"
+    progress_output8.value += f"<ul>"
+    progress_output8.value += f"<li><b>{os.path.basename(export_model_path)}</b> - The TFLite model file</li>"
+    progress_output8.value += f"<li><b>manifest.json</b> - Model metadata for ESPHome</li>"
+    progress_output8.value += f"<li><b>esphome_example.yaml</b> - Example ESPHome configuration</li>"
+    progress_output8.value += f"</ul>"
+    progress_output8.value += f"<p>Files are saved in the <code>{export_dir}</code> directory.</p>"
