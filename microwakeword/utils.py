@@ -185,12 +185,22 @@ def convert_to_inference_model(model, input_tensors, mode):
         new_model = tf.keras.models.clone_model(model, input_tensors)
 
     if mode == modes.Modes.STREAM_INTERNAL_STATE_INFERENCE:
-        return _copy_weights(new_model, model)
+        new_model = _copy_weights(new_model, model)
     elif mode == modes.Modes.NON_STREAM_INFERENCE:
         new_model.set_weights(model.get_weights())
-        return new_model
     else:
         raise ValueError("non supported mode ", mode)
+
+    # Fix for Lambda layers without output_shape
+    for layer in new_model.layers:
+        if isinstance(layer, tf.keras.layers.Lambda) and not hasattr(layer, 'output_shape'):
+            # Get the input shape
+            input_shape = layer.input_shape
+            # Set the output shape to be the same as the input shape
+            # This is a reasonable default for many reshape operations
+            layer._output_shape = input_shape
+
+    return new_model
 
 
 def to_streaming_inference(model_non_stream, config, mode):
@@ -283,6 +293,15 @@ def model_to_saved(
         # convert non streaming Keras model to Keras streaming model, internal state
         model = to_streaming_inference(model_non_stream, config, mode)
 
+    # Fix for Lambda layers without output_shape
+    for layer in model.layers:
+        if isinstance(layer, tf.keras.layers.Lambda) and not hasattr(layer, 'output_shape'):
+            # Get the input shape
+            input_shape = layer.input_shape
+            # Set the output shape to be the same as the input shape
+            # This is a reasonable default for many reshape operations
+            layer._output_shape = input_shape
+
     return model
 
 
@@ -370,6 +389,16 @@ def convert_model_saved(model, config, folder, mode):
 
     # XXX: Using `converted_model.export(path_model)` results in obscure errors during
     # quantization, we create an export archive directly instead.
+
+    # Fix for Lambda layers without output_shape
+    for layer in converted_model.layers:
+        if isinstance(layer, tf.keras.layers.Lambda) and not hasattr(layer, 'output_shape'):
+            # Get the input shape
+            input_shape = layer.input_shape
+            # Set the output shape to be the same as the input shape
+            # This is a reasonable default for many reshape operations
+            layer._output_shape = input_shape
+
     export_archive = tf.keras.export.ExportArchive()
     export_archive.track(converted_model)
     export_archive.add_endpoint(
