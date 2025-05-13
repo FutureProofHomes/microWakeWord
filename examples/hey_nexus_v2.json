@@ -1,16 +1,16 @@
 {
   "type": "micro",
   "wake_word": "Hey Nexus",
-  "author": "BigPappy098",
-  "website": "https://github.com/BigPappy098",
-  "model": "https://raw.githubusercontent.com/BigPappy098/microWakeWord-old/refs/heads/main/examples/hey_nexus_v2.tflite",
+  "author": "FutureProofHomes Inc.",
+  "website": "https://futureproofhomes.net",
+  "model": "https://github.com/FutureProofHomes/microWakeWord/raw/refs/heads/main/examples/hey_nexus_v2.tflite",
   "version": 2,
   "trained_languages": ["en"],
   "micro": {
     "probability_cutoff": 0.63,
     "sliding_window_size": 5,
     "feature_step_size": 10,
-    "tensor_arena_size": 22860,
+    "tensor_arena_size": 25860,
     "minimum_esphome_version": "2024.7.0"
   }
 }
