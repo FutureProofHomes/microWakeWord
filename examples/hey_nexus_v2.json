@@ -3,7 +3,7 @@
   "wake_word": "Hey Nexus",
   "author": "FutureProofHomes Inc.",
   "website": "https://futureproofhomes.net",
-  "model": "https://github.com/FutureProofHomes/microWakeWord/raw/refs/heads/main/examples/hey_nexus_v2.tflite",
+  "model": "https://raw.githubusercontent.com/FutureProofHomes/microWakeWord/refs/heads/main/examples/hey_nexus_v2.tflite",
   "version": 2,
   "trained_languages": ["en"],
   "micro": {
